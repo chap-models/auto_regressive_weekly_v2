@@ -2,7 +2,7 @@
 
 import os
 
-from chap_ar import AutoRegressiveModel
+from chap_auto_regressive import AutoRegressiveModel
 
 
 def build_model() -> AutoRegressiveModel:

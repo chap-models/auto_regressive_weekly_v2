@@ -5,7 +5,7 @@ description = "Weekly Deep Auto Regressive CHAP model (RNN architecture, flax/ja
 license = { text = "AGPLv3 license" }
 requires-python = ">=3.13,<3.14"
 dependencies = [
-    "chap_ar @ git+https://github.com/mortenoh/chap_ar.git@main",
+    "chap_auto_regressive @ git+https://github.com/mortenoh/chap_auto_regressive.git@main",
     "pandas>=2.1",
 ]
 

@@ -54,7 +54,7 @@ name = "auto-regressive-weekly"
 version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "chap-ar" },
+    { name = "chap-auto-regressive" },
     { name = "pandas" },
 ]
 
@@ -68,7 +68,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "chap-ar", git = "https://github.com/mortenoh/chap_ar.git?rev=main" },
+    { name = "chap-auto-regressive", git = "https://github.com/mortenoh/chap_auto_regressive.git?rev=main" },
     { name = "pandas", specifier = ">=2.1" },
 ]
 
@@ -81,9 +81,9 @@ dev = [
 ]
 
 [[package]]
-name = "chap-ar"
+name = "chap-auto-regressive"
 version = "1.0.0"
-source = { git = "https://github.com/mortenoh/chap_ar.git?rev=main#714a8439ef821c0f619ae62b84fc157eeb7f9bc3" }
+source = { git = "https://github.com/mortenoh/chap_auto_regressive.git?rev=main#1020efc2edc81be72a26909e0e187f247ff76a8e" }
 dependencies = [
     { name = "flax" },
     { name = "jax" },
