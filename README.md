@@ -4,7 +4,7 @@ Weekly Deep Auto Regressive model for CHAP. An experimental deep learning model
 based on an RNN architecture that forecasts disease cases from auto-regressive
 time series data and climate covariates.
 
-It wraps `ARModelTV1` from
+It wraps `AutoRegressiveModel` from
 [`chap_ar`](https://github.com/mortenoh/chap_ar) and exposes the standard CHAP
 `train` / `predict` command-line interface via
 `chap_core.adaptors.command_line_interface.generate_app`.
@@ -31,11 +31,14 @@ Key pins:
 
 - Python 3.13
 - `chap-core` @ git `master` (dhis2-chap/chap-core)
-- `chap_ar` @ git (mortenoh/chap_ar) — the deep AR flax model, providing `ARModelTV1`
+- `chap_ar` @ git (mortenoh/chap_ar) — the deep AR flax model, providing `AutoRegressiveModel`
 - `flax 0.12`, `jax 0.10` (resolved transitively via `chap_ar`)
 
-Training iterations default to 1000; set `AR_N_ITER` to run a faster pass (the
-test suite uses a small value).
+The number of training iterations defaults to **1000**. Set the `AR_N_ITER`
+environment variable to override it — CHAP passes it through to the model process,
+so for example the test suite runs with `AR_N_ITER=30` to make a full `chap eval`
+finish in a couple of minutes. Lower it for quick checks, leave it at the default
+for production forecasts.
 
 ## Development
 

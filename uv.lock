@@ -362,7 +362,7 @@ wheels = [
 [[package]]
 name = "chap-ar"
 version = "1.0.0"
-source = { git = "https://github.com/mortenoh/chap_ar.git?rev=main#f10c9c6d9bc2eeca697960e965718282b2632d2a" }
+source = { git = "https://github.com/mortenoh/chap_ar.git?rev=main#f01cb1d2f3c163612bf5749f9e1531981ee4d110" }
 dependencies = [
     { name = "chap-core" },
     { name = "flax" },

@@ -3,12 +3,12 @@
 import logging
 import os
 
-from chap_ar.models.flax_models.flax_model_v1 import ARModelTV1
+from chap_ar import AutoRegressiveModel
 from chap_core.adaptors.command_line_interface import generate_app
 
 logging.basicConfig(level=logging.INFO)
 
-model = ARModelTV1()
+model = AutoRegressiveModel()
 # Training iterations default to 1000; AR_N_ITER lets tests run a fast pass.
 model.n_iter = int(os.environ.get("AR_N_ITER", "1000"))
 model.context_length = 52
