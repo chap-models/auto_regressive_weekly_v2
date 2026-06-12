@@ -80,7 +80,7 @@ def main() -> None:
     }
     (out / "meta.json").write_text(json.dumps(meta, indent=2) + "\n")
     print(
-        f"wrote {out/'weights.safetensors'} ({len(tensors)} tensors) and {out/'meta.json'} "
+        f"wrote {out / 'weights.safetensors'} ({len(tensors)} tensors) and {out / 'meta.json'} "
         f"(context={config.context_length}, prediction={config.prediction_length})"
     )
 

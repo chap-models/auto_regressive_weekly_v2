@@ -18,7 +18,43 @@ and write CSV with pandas. The model has no chap-core dependency at runtime.
 | prediction length | 12 |
 | training iterations | 1000 |
 | learning rate | 1e-5 |
+| ensemble members | 5 |
 | required covariates | rainfall, mean_temperature, population |
+| additional covariates | any `additional_continuous_covariates` from the run config |
+
+These are the defaults; every one is a chap `user_option` that a run can override
+(see [Model configuration](#model-configuration)).
+
+## Covariates
+
+The three required covariates (`rainfall`, `mean_temperature`, `population`) are
+always used. Any covariate named in a run's `additional_continuous_covariates` is
+passed through to the network as an extra feature on top of those three —
+`train.py` picks up every numeric covariate column present in the training data,
+and the chosen set is stored in the saved model so `predict.py` needs no matching
+config. Datasets that carry only the required three (e.g. the Laos weekly data)
+simply train on those.
+
+## Model configuration
+
+The tunable knobs are declared as chap `user_options` in `MLproject` (architecture
+— `cell`, `rnn_features`, `head_features`, `rnn_layers`, `recursive_decode`,
+`dropout_rate`, `input_dropout_rate`; and training — `n_iter`, `context_length`,
+`n_ensemble`, `learning_rate`, `prediction_length`). Their defaults are the weekly
+configuration above. A run overrides them through a model-configuration YAML, which
+chap passes to the train entry point; the architecture is persisted in the trained
+model, so predict needs no configuration. [`configs/example.yaml`](configs/example.yaml)
+is a starting point:
+
+```bash
+chap eval \
+    --model-name . \
+    --dataset-csv /path/to/laos_weekly.csv \
+    --model-configuration-yaml configs/example.yaml \
+    --output-file /tmp/chap/laos_eval.nc \
+    --backtest-params.n-splits 2 \
+    --backtest-params.n-periods 1
+```
 
 ## Environment
 
@@ -30,12 +66,15 @@ environment creation deterministic and fast.
 Key pins:
 
 - Python 3.13
-- `chap_auto_regressive` @ git (mortenoh/chap_auto_regressive) — the deep AR flax model, providing `AutoRegressiveModel`
+- `chap_auto_regressive` @ git — the deep AR flax model, providing `AutoRegressiveModel`. Pinned
+  to the `feat/ar-model-improvements` branch (chap-configurable knobs, deep ensemble, feature
+  dropout) until [mortenoh/chap_auto_regressive#2](https://github.com/mortenoh/chap_auto_regressive/pull/2) merges
 - `flax 0.12`, `jax 0.10` (resolved transitively via `chap_auto_regressive`)
 
-The number of training iterations defaults to **1000**. Set the `AR_N_ITER`
-environment variable to override it — CHAP passes it through to the model process,
-so for example the test suite runs with `AR_N_ITER=30` to make a full `chap eval`
+The number of training iterations defaults to **1000** and is normally set through
+the `n_iter` model option (see [Model configuration](#model-configuration)). The
+`AR_N_ITER` environment variable is kept as a test-speed shortcut that overrides it
+regardless of config — the test suite and `make eval` run with `AR_N_ITER=30` to
 finish in a couple of minutes. Lower it for quick checks, leave it at the default
 for production forecasts.
 
@@ -83,3 +122,6 @@ uv run chap eval \
     --backtest-params.n-splits 2 \
     --backtest-params.n-periods 1
 ```
+
+Add `--model-configuration-yaml configs/example.yaml` to override the tunable knobs
+or feed additional covariates.
