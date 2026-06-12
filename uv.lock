@@ -70,7 +70,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "chap-auto-regressive", git = "https://github.com/knutdrand/chap_auto_regressive.git?rev=feat%2Far-model-improvements" },
+    { name = "chap-auto-regressive", git = "https://github.com/chap-models/chap_auto_regressive.git?rev=main" },
     { name = "pandas", specifier = ">=2.1" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
@@ -87,7 +87,7 @@ dev = [
 [[package]]
 name = "chap-auto-regressive"
 version = "1.0.0"
-source = { git = "https://github.com/knutdrand/chap_auto_regressive.git?rev=feat%2Far-model-improvements#aa9a15db0e93ba82ca9edfe69e20e1e62c998ffa" }
+source = { git = "https://github.com/chap-models/chap_auto_regressive.git?rev=main#965db0f121bf59494e9a3939afe2d9568e08106b" }
 dependencies = [
     { name = "flax" },
     { name = "jax" },
