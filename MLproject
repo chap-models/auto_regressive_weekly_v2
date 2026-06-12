@@ -78,7 +78,7 @@ user_options:
     type: number
     default: 0.0
 meta_data:
-  display_name: 'Weekly Deep Auto Regressive NG (experimental)'
+  display_name: 'Weekly Deep Auto Regressive v2 (experimental)'
   description: "An experimental deep learning model based on an RNN architecture, focusing on predictions based on auto-regressive time series data."
   author: "Knut Rand"
   organization: "HISP Centre, University of Oslo"
