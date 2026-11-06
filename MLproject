@@ -41,9 +41,22 @@ user_options:
     type: integer
     default: 5
   learning_rate:
-    title: Adam learning rate
+    title: Adam learning rate (with a schedule, the start and end rate)
     type: number
     default: 0.00001
+  lr_schedule:
+    title: Learning-rate schedule (warmup_cosine warms up to peak_learning_rate, then cosine-decays to learning_rate over n_iter)
+    type: string
+    enum: [constant, warmup_cosine]
+    default: constant
+  peak_learning_rate:
+    title: Peak learning rate of the warmup_cosine schedule
+    type: number
+    default: 0.001
+  warmup_epochs:
+    title: Linear warmup epochs of the warmup_cosine schedule
+    type: integer
+    default: 5
   prediction_length:
     title: Forecast horizon (weeks) the model is trained for
     type: integer

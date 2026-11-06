@@ -40,7 +40,8 @@ simply train on those.
 The tunable knobs are declared as chap `user_options` in `MLproject` (architecture
 — `cell`, `rnn_features`, `head_features`, `rnn_layers`, `recursive_decode`,
 `dropout_rate`, `input_dropout_rate`; and training — `n_iter`, `context_length`,
-`n_ensemble`, `learning_rate`, `prediction_length`). Their defaults are the weekly
+`n_ensemble`, `learning_rate`, `prediction_length`, and the optional learning-rate
+schedule `lr_schedule`, `peak_learning_rate`, `warmup_epochs`). Their defaults are the weekly
 configuration above. A run overrides them through a model-configuration YAML, which
 chap passes to the train entry point; the architecture is persisted in the trained
 model, so predict needs no configuration. [`configs/example.yaml`](configs/example.yaml)
@@ -54,6 +55,23 @@ chap eval \
     --output-file /tmp/chap/laos_eval.nc \
     --backtest-params.n-splits 2 \
     --backtest-params.n-periods 1
+```
+
+### Learning-rate schedule
+
+By default Adam runs at a constant `learning_rate` (1e-5), which needs about 1000
+epochs on large weekly data. Setting `lr_schedule: warmup_cosine` instead warms the
+rate up linearly from `learning_rate` to `peak_learning_rate` (default 1e-3) over
+`warmup_epochs` (default 5), then cosine-decays it back to `learning_rate` at the end
+of `n_iter`. The decay length follows `n_iter`, so a shorter budget still gets a full
+decay. On 1,500 simulated weekly facilities (issue #2), peak 1e-3 with `n_iter: 150`
+matched the default 1000-epoch test CRPS at about 6.7x fewer epochs:
+
+```yaml
+user_option_values:
+  lr_schedule: warmup_cosine
+  peak_learning_rate: 0.001
+  n_iter: 150
 ```
 
 ## Environment
