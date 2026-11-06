@@ -12,6 +12,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
@@ -153,3 +154,44 @@ def test_build_model_defaults_to_weekly_configuration():
     model = build_model()
     assert model.context_length == 52  # a year of weekly history
     assert model.prediction_length == 12  # a quarter-ahead horizon
+
+
+def test_warmup_cosine_schedule_shape():
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))  # model.py lives at the repo root
+    from model import build_model
+
+    model = build_model({"lr_schedule": "warmup_cosine", "n_iter": 100, "learning_rate": 1e-5})
+    steps_per_epoch = 10
+    schedule = model.learning_rate_for(steps_per_epoch)
+    assert callable(schedule)
+    assert np.isclose(schedule(0), 1e-5)  # starts at the base rate
+    assert np.isclose(schedule(5 * steps_per_epoch), 1e-3)  # peak after the 5 default warmup epochs
+    assert np.isclose(schedule(100 * steps_per_epoch), 1e-5)  # decayed back by the end of n_iter
+    assert np.isclose(schedule(1000 * steps_per_epoch), 1e-5)  # and stays there
+
+
+def test_constant_schedule_is_the_default_and_unknown_schedule_fails():
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))  # model.py lives at the repo root
+    from model import build_model
+
+    assert build_model().learning_rate_for(10) == 1e-5
+    with pytest.raises(ValueError, match="lr_schedule"):
+        build_model({"lr_schedule": "cosine"}).learning_rate_for(10)
+
+
+def test_train_then_predict_with_warmup_cosine_schedule(tmp_path: Path) -> None:
+    env = {**os.environ, "AR_N_ITER": "10"}
+    model_path = tmp_path / "model.bin"
+    cfg = _write_config(tmp_path, n_ensemble=1, lr_schedule="warmup_cosine", warmup_epochs=2)
+    result = subprocess.run(
+        [sys.executable, "train.py", str(INPUT), str(model_path), "--config", cfg],
+        cwd=REPO,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "Learning-rate schedule warmup_cosine" in result.stderr
+    assert model_path.exists()

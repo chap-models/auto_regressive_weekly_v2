@@ -55,6 +55,7 @@ version = "1.0.0"
 source = { virtual = "." }
 dependencies = [
     { name = "chap-auto-regressive" },
+    { name = "optax" },
     { name = "pandas" },
     { name = "pyyaml" },
 ]
@@ -71,6 +72,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "chap-auto-regressive", git = "https://github.com/chap-models/chap_auto_regressive.git?rev=main" },
+    { name = "optax", specifier = ">=0.2.8" },
     { name = "pandas", specifier = ">=2.1" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
