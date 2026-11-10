@@ -214,3 +214,15 @@ def test_context_length_is_clamped_to_short_history(tmp_path: Path) -> None:
 
     sample_cols = [c for c in out.columns if c.startswith("sample_")]
     assert sample_cols and np.isfinite(out[sample_cols].to_numpy()).all()
+
+
+def test_mlproject_declares_every_model_option():
+    # chap only offers the options the MLproject declares, so an option the code
+    # accepts but the MLproject omits cannot be set from chap.
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))  # model.py lives at the repo root
+    from model import MODEL_OPTIONS
+
+    with open(REPO / "MLproject") as f:
+        declared = set(yaml.safe_load(f)["user_options"])
+    assert declared == set(MODEL_OPTIONS)
