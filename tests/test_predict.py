@@ -20,11 +20,45 @@ INPUT = REPO / "input" / "trainData.csv"
 PREDICTION_LENGTH = 12
 
 
-def _write_config(tmp_path: Path, **options) -> str:
-    """Write a CHAP model-configuration YAML with the given user_option_values."""
+def _write_config(tmp_path: Path, covariates: list[str] | None = None, **options) -> str:
+    """Write a CHAP model-configuration YAML with the given covariates and user_option_values."""
     path = tmp_path / "config.yaml"
-    path.write_text(yaml.safe_dump({"user_option_values": options}))
+    path.write_text(
+        yaml.safe_dump({"additional_continuous_covariates": covariates or [], "user_option_values": options})
+    )
     return str(path)
+
+
+def _train_and_predict(tmp_path: Path, train_df: pd.DataFrame, predict_df: pd.DataFrame, cfg: str) -> pd.DataFrame:
+    """Train on ``train_df``, forecast the last periods of ``predict_df``, and return the predictions."""
+    env = {**os.environ, "AR_N_ITER": "30"}
+    data_path = tmp_path / "train.csv"
+    train_df.to_csv(data_path, index=False)
+    model_path = tmp_path / "model.bin"
+    subprocess.run(
+        [sys.executable, "train.py", str(data_path), str(model_path), "--config", cfg], cwd=REPO, env=env, check=True
+    )
+
+    future = pd.concat(
+        [
+            sub.sort_values("time_period").tail(PREDICTION_LENGTH).drop(columns=["disease_cases"])
+            for _, sub in predict_df.groupby("location", sort=False)
+        ],
+        ignore_index=True,
+    )
+    historic_path = tmp_path / "historic.csv"
+    future_path = tmp_path / "future.csv"
+    out_path = tmp_path / "predictions.csv"
+    predict_df.to_csv(historic_path, index=False)
+    future.to_csv(future_path, index=False)
+
+    subprocess.run(
+        [sys.executable, "predict.py", str(model_path), str(historic_path), str(future_path), str(out_path)],
+        cwd=REPO,
+        env=env,
+        check=True,
+    )
+    return pd.read_csv(out_path)
 
 
 def test_train_then_predict(tmp_path: Path) -> None:
@@ -68,67 +102,31 @@ def test_train_then_predict(tmp_path: Path) -> None:
     assert len(out) == df["location"].nunique() * PREDICTION_LENGTH
 
 
-def test_additional_covariates_helper_skips_index_target_required_and_chap_metadata():
-    if str(REPO) not in sys.path:
-        sys.path.insert(0, str(REPO))  # model.py lives at the repo root
-    from model import additional_covariates
-
-    # CHAP writes an unnamed index and a string `parent` column alongside the
-    # declared covariates; only the numeric extra covariates should be selected.
-    frame = pd.DataFrame(
-        {
-            "Unnamed: 0": [0, 1],
-            "time_period": ["2020-W01", "2020-W02"],
-            "location": ["A", "A"],
-            "parent": ["P", "P"],
-            "disease_cases": [1.0, 2.0],
-            "rainfall": [1.0, 2.0],
-            "mean_temperature": [20.0, 21.0],
-            "population": [1000.0, 1000.0],
-            "relative_humidity": [50.0, 55.0],
-            "irs_decay": [0.1, 0.2],
-        }
-    )
-    assert additional_covariates(frame) == ["relative_humidity", "irs_decay"]
-
-
 def test_train_then_predict_with_additional_covariate(tmp_path: Path) -> None:
-    # An extra covariate column in the data is fed to the network at train time
-    # and required at predict time (it is persisted in the saved model).
-    env = {**os.environ, "AR_N_ITER": "30"}
+    # A covariate declared in the configuration is fed to the network at train
+    # time and required at predict time (it is persisted in the saved model).
     df = pd.read_csv(INPUT)
     rng = np.random.RandomState(0)
     df["relative_humidity"] = rng.rand(len(df)) * 100  # a derived extra covariate
 
-    data_path = tmp_path / "train_extra.csv"
-    df.to_csv(data_path, index=False)
-    model_path = tmp_path / "model.bin"
+    cfg = _write_config(tmp_path, covariates=["relative_humidity"], n_ensemble=1)
+    out = _train_and_predict(tmp_path, df, df, cfg)
+
+    sample_cols = [c for c in out.columns if c.startswith("sample_")]
+    assert sample_cols and np.isfinite(out[sample_cols].to_numpy()).all()
+    assert len(out) == df["location"].nunique() * PREDICTION_LENGTH
+
+
+def test_undeclared_covariate_column_is_not_used(tmp_path: Path) -> None:
+    # CHAP writes every dataset column into the training CSV. A numeric column the
+    # configuration does not declare must not reach the network, so predicting
+    # without it has to work.
+    df = pd.read_csv(INPUT)
+    train_df = df.assign(relative_humidity=np.random.RandomState(0).rand(len(df)) * 100)
+
     cfg = _write_config(tmp_path, n_ensemble=1)
-    subprocess.run(
-        [sys.executable, "train.py", str(data_path), str(model_path), "--config", cfg], cwd=REPO, env=env, check=True
-    )
+    out = _train_and_predict(tmp_path, train_df, df, cfg)
 
-    future = pd.concat(
-        [
-            sub.sort_values("time_period").tail(PREDICTION_LENGTH).drop(columns=["disease_cases"])
-            for _, sub in df.groupby("location", sort=False)
-        ],
-        ignore_index=True,
-    )
-    historic_path = tmp_path / "historic.csv"
-    future_path = tmp_path / "future.csv"
-    out_path = tmp_path / "predictions.csv"
-    df.to_csv(historic_path, index=False)
-    future.to_csv(future_path, index=False)
-
-    subprocess.run(
-        [sys.executable, "predict.py", str(model_path), str(historic_path), str(future_path), str(out_path)],
-        cwd=REPO,
-        env=env,
-        check=True,
-    )
-
-    out = pd.read_csv(out_path)
     sample_cols = [c for c in out.columns if c.startswith("sample_")]
     assert sample_cols and np.isfinite(out[sample_cols].to_numpy()).all()
     assert len(out) == df["location"].nunique() * PREDICTION_LENGTH
@@ -195,3 +193,24 @@ def test_train_then_predict_with_warmup_cosine_schedule(tmp_path: Path) -> None:
     )
     assert "Learning-rate schedule warmup_cosine" in result.stderr
     assert model_path.exists()
+
+
+def test_early_stopping_is_opt_in():
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))  # model.py lives at the repo root
+    from model import build_model
+
+    assert build_model().early_stopping is False
+    assert build_model({"early_stopping": True, "validation_periods": 8}).validation_periods == 8
+
+
+def test_context_length_is_clamped_to_short_history(tmp_path: Path) -> None:
+    # 40 weeks is too short for the 52-week context plus the 12-week horizon, so
+    # train.py shrinks the context instead of failing.
+    df = pd.read_csv(INPUT)
+    periods = sorted(df["time_period"].unique())[-40:]
+    short = df.loc[df["time_period"].isin(periods)].reset_index(drop=True)
+    out = _train_and_predict(tmp_path, short, short, _write_config(tmp_path, n_ensemble=1))
+
+    sample_cols = [c for c in out.columns if c.startswith("sample_")]
+    assert sample_cols and np.isfinite(out[sample_cols].to_numpy()).all()
