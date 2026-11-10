@@ -29,19 +29,21 @@ These are the defaults; every one is a chap `user_option` that a run can overrid
 
 The three required covariates (`rainfall`, `mean_temperature`, `population`) are
 always used. Any covariate named in a run's `additional_continuous_covariates` is
-passed through to the network as an extra feature on top of those three —
-`train.py` picks up every numeric covariate column present in the training data,
-and the chosen set is stored in the saved model so `predict.py` needs no matching
-config. Datasets that carry only the required three (e.g. the Laos weekly data)
+passed through to the network as an extra feature on top of those three.
+Other columns in the training data are ignored, even though CHAP writes every
+dataset column into the CSV it hands to `train.py`. The chosen set is stored in
+the saved model so `predict.py` needs no matching config. Datasets that carry only the required three (e.g. the Laos weekly data)
 simply train on those.
 
 ## Model configuration
 
 The tunable knobs are declared as chap `user_options` in `MLproject` (architecture
 — `cell`, `rnn_features`, `head_features`, `rnn_layers`, `recursive_decode`,
-`dropout_rate`, `input_dropout_rate`; and training — `n_iter`, `context_length`,
+`dropout_rate`, `input_dropout_rate`; training — `n_iter`, `context_length`,
 `n_ensemble`, `learning_rate`, `prediction_length`, and the optional learning-rate
-schedule `lr_schedule`, `peak_learning_rate`, `warmup_epochs`). Their defaults are the weekly
+schedule `lr_schedule`, `peak_learning_rate`, `warmup_epochs`; and opt-in early stopping
+— `early_stopping`, `validation_periods`, `patience`, `eval_every`, `min_probe_windows`,
+`refit_scaling`, plus `seed_offset`). Their defaults are the weekly
 configuration above. A run overrides them through a model-configuration YAML, which
 chap passes to the train entry point; the architecture is persisted in the trained
 model, so predict needs no configuration. [`configs/example.yaml`](configs/example.yaml)

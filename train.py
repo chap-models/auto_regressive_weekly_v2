@@ -6,20 +6,46 @@ from pathlib import Path
 
 import pandas as pd
 import yaml
+from chap_auto_regressive import AutoRegressiveModel
 
-from model import additional_covariates, build_model
+from model import build_model
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def _read_user_options(config_path: str | None) -> dict:
-    """Read ``user_option_values`` from a CHAP model-configuration YAML, if given."""
+def _read_config(config_path: str | None) -> dict:
+    """Read a CHAP model-configuration YAML, if given."""
     if not config_path or not Path(config_path).exists():
         return {}
     with open(config_path) as f:
-        config = yaml.safe_load(f) or {}
-    return config.get("user_option_values", {}) or {}
+        return yaml.safe_load(f) or {}
+
+
+def _clamp_context_length(model: AutoRegressiveModel, data: pd.DataFrame) -> None:
+    """Shrink ``context_length`` so the training data yields at least one window.
+
+    Training needs ``context_length + prediction_length`` periods per window and
+    prediction needs ``context_length`` periods of history, so the largest safe
+    context is ``shortest history - prediction_length``. The clamped value is
+    persisted in the trained predictor, so predict stays consistent.
+    """
+    period_counts: list[int] = data.groupby("location")["time_period"].nunique().tolist()
+    periods = min(period_counts)
+    max_context = periods - model.prediction_length
+    if max_context < 1:
+        raise ValueError(
+            f"training data is too short: the shortest location history has {periods} periods, "
+            f"but at least prediction_length+1={model.prediction_length + 1} are needed"
+        )
+    if model.context_length > max_context:
+        logger.warning(
+            "context_length=%d exceeds the available history (%d periods); clamping to %d",
+            model.context_length,
+            periods,
+            max_context,
+        )
+        model.context_length = max_context
 
 
 def main() -> None:
@@ -31,14 +57,18 @@ def main() -> None:
     args = parser.parse_args()
 
     data = pd.read_csv(args.train_data)
-    options = _read_user_options(args.config)
+    config = _read_config(args.config)
+    options = config.get("user_option_values") or {}
     if options:
         logger.info("Applying model options: %s", options)
     model = build_model(options)
-    # Any covariate column beyond the required three is fed to the network as an
-    # additional feature. The chosen covariates are persisted in the saved
-    # predictor, so predict.py needs no matching configuration.
-    model.additional_covariates = additional_covariates(data)
+    _clamp_context_length(model, data)
+    # Only the covariates the configuration declares are fed to the network on
+    # top of the required three. CHAP writes every dataset column into the
+    # training CSV, so the columns present do not decide what is used. The chosen
+    # covariates are persisted in the saved predictor, so predict.py needs no
+    # matching configuration.
+    model.additional_covariates = list(config.get("additional_continuous_covariates") or [])
     if model.additional_covariates:
         logger.info("Using additional covariates: %s", model.additional_covariates)
     predictor = model.train(data)

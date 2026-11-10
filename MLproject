@@ -32,6 +32,35 @@ user_options:
     title: Training epochs per ensemble member
     type: integer
     default: 1000
+  seed_offset:
+    title: Offset added to every ensemble member's seed (for repeat runs)
+    type: integer
+    default: 0
+  early_stopping:
+    title: Stop each member at its best validation epoch, then refit on all data (needs a long series; see validation_periods)
+    type: boolean
+    default: false
+  validation_periods:
+    title: Trailing periods held out to pick the stopping epoch
+    type: integer
+    default: 12
+  min_probe_windows:
+    title: Training windows the early-stopping probe needs before the held-out block
+    type: integer
+    default: 5
+  refit_scaling:
+    title: How the probe's stopping point carries over to the full refit
+    type: string
+    enum: [epochs, steps]
+    default: epochs
+  patience:
+    title: Evaluations without improvement before stopping
+    type: integer
+    default: 6
+  eval_every:
+    title: Epochs between validation evaluations
+    type: integer
+    default: 5
   context_length:
     title: Weeks of history read as context
     type: integer
